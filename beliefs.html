@@ -1,0 +1,361 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html>
+	<head>
+		<title></title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"> 
+		<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1"> 
+
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.6.1/jquery.js"></script>
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.1.6/underscore.js"></script>
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.3.3/backbone-min.js"></script>
+		<script type="text/javascript" src="beliefs.js"></script>
+	</head>
+	<body>
+	
+		<style>
+			
+			html, body {
+				height: 100%;
+			}
+			
+			body {
+				position: fixed;
+				width: 100%;
+			}
+			
+			.main {
+				position: fixed;
+				top: 30px;
+				margin-top: 50px;
+			}
+			
+			.content {
+				position: relative;
+				height: 100%;
+			}
+			
+			.sidebar {
+				display: none;
+				position: relative;
+			}
+			
+			.belief {
+				position: static;
+				font-size: 16px;
+				margin: 0 0 10px 0;
+				border-bottom: 1px solid #eee;
+				padding: 0 0 10px 0;
+				cursor: pointer;
+				
+			}
+			
+			.timeline-wrap {
+				position: relative;
+			}
+			
+			.timeline {
+			
+			}
+			
+			.spine {
+				border-left: 2px solid #DDD;
+				position: relative;
+				left: 1px;
+				z-index: 2;
+			}
+			
+			.highlight {
+				background-color: #ddd;
+				width: 10px;
+				height: 30%;
+				position: absolute;
+				top: 0px;
+				z-index: 1;
+				display: none;
+			}
+			
+			.marker {
+				height: 3px;
+				width: 3px;
+				background-color: #CCC;
+				position: absolute;
+				z-index: 100;
+				margin-left: 1px;
+				margin-top: -1px;
+				display: none;
+			}
+			
+			.line {
+				z-index: 99;
+				background-color: #ddd;
+				width: 25px;
+				height: 1px;
+				position: absolute;
+				margin-left: 1px;
+			}
+			
+			h1 {
+				margin: 0;
+				font-family: Helvetica, Arial;
+				font-size: 16px;
+				text-transform: uppercase;
+				line-height: 24px;
+			}
+			
+			p {
+				margin: 0;
+				font-family: Arial;
+				font-size: 13px;
+				text-transform: none;
+				font-weight: normal;
+				display: inline;
+			}
+			
+			header {
+				margin: 0 0 10px 0;
+				z-index: 20;
+			}
+			
+			
+			
+			@media screen and (min-width: 480px) {
+				
+				header {
+					padding-top: 20px;
+					margin-left: 20px;
+					margin-bottom: 0;
+					position: fixed;
+					top: 0;
+				}
+				
+				.main {
+					position: static;
+				}
+				
+				.timeline-wrap {
+					height: 100%;
+					margin: 0 20px;
+					position: absolute;
+					top: 0px;
+				}
+				
+				.line {
+					display: none;
+				}
+				
+				.belief {
+					margin: 0;
+					padding: 0;
+					border: 0;
+					position: absolute;
+					font-family: Georgia;
+					margin-top: -18px;
+					font-size: 18px;
+					padding: 7px 11px 7px 5px;
+					border: 1px solid #ccc;
+					box-shadow: 1px 1px 2px 0px #eee;
+					color: #333;
+					display: none;
+					background-color: white;
+				}
+				
+				.belief.active {
+					border: 1px solid #999;
+					box-shadow: 1px 1px 2px 0px #ddd;
+					color: #000;
+				}
+				
+				.belief .lead {
+					font-family: Arial;
+					width: 40px;
+					display: inline-block;
+					text-align: right;
+					color: #666;
+				}
+				
+				.belief .pct {
+					font-size: 14px;
+				}
+				
+				
+				.label {
+					position: absolute;
+					font-family: arial;
+					color: #999;
+					font-size: 12px;
+					left: -40px;
+					width: 30px;
+					text-align: right;
+				}
+				.sidebar {
+					display: block;
+					float: left;
+					width: 20px;
+					height: 100%;
+					margin-left: 45px;
+				}
+				
+				.content {
+					margin-left: 90px;
+				}
+				
+				.spine {
+					height: 100%;
+				}
+				
+				.bar {
+					background-color: orange;
+					opacity: 1;
+					width: 2px;
+					position: absolute;
+					display: none;
+					z-index: 105;
+					margin-left: 1px;
+				}
+				
+			}
+		</style>
+		
+		<script type="text/javascript">
+		
+			var exists = {};
+			
+			$(document).ready(function() {
+								
+				$("#main").height($(window).height() - $("header").height() - 70);
+				$("#main").css({ marginTop: $("header").height() + 30 });
+			
+				beliefs = _.sortBy(beliefs, function(belief) {
+					return 100 - belief.highlight.split("%")[0]
+				});
+				
+				_.each(beliefs, function(belief) {
+					if (!belief.highlight) return false;
+					belief.pct = belief.highlight.split("%")[0];
+					belief.highlight_text = belief.highlight.split("%")[1].replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+					belief.inv_pct = 100 - belief.pct;
+				});
+				
+				$(window).scroll(function() {
+					
+					var top_pct = $(window).scrollTop() / document.height * 100;
+					var bottom_pct = top_pct + 30;
+					$(".highlight").css({ top: top_pct + "%" }) 
+					
+				});
+				
+				refresh();
+				
+				$("#refresh").click(refresh);
+				
+			});
+			
+			function refresh() {
+				$(".content").html("");
+				exists = {};
+				
+				$(".marker").remove();
+				$(".line").remove();
+				$(".bar").remove();
+				
+				var id = 1;
+				
+				_.each(beliefs, function(belief) {
+				
+					if (!belief.highlight) return false;
+					
+					belief.id = id;
+					
+					var top = belief.inv_pct;
+					var pixels = top * 25;
+					
+					var skip = false;
+					
+					var margin = 5;
+					
+					var random = 0.4;
+					
+					if (Math.random() > random) skip = true;
+					
+					_.each(exists, function(value, key) {
+						top = Number(top);
+						key = Number(key);
+						if (top - margin < key && top + margin > key) skip = true;
+					});
+					
+					if (skip) return false;
+					
+					if (!exists[top]) exists[top] = true;
+					else return false;
+					
+					var belief_html = "<div data-id='<%= id %>' class='belief' style='top: <%= inv_pct %>%'><span class='lead'><%= pct %><span class='pct'>%</span></span> <%= highlight_text %></div>";
+					
+					var bar_html = "<div id='bar-<%= id %>' class='bar' style='top: <%= inv_pct %>%; height: <%= pct %>%'></div>";
+					
+					var belief_object = $(_.template(belief_html, belief));
+					
+					var line_object = $("<div id='line-" + id + "' class='line' style='top: " + top + "%'></div>");
+					
+					$(".content").append(belief_object);
+					
+					setTimeout(function() { belief_object.fadeIn(250); line_object.fadeIn(250); }, belief.inv_pct / 100 * 500);
+					
+					$("#timeline-wrap").append("<div class='marker' style='top: " + top + "%'></div>");
+					
+					$("#timeline-wrap").append(line_object);
+					
+					$("#timeline-wrap").append(_.template(bar_html, belief));
+					
+					id++;
+					
+				});
+				
+				$(".belief").mouseenter(function() {
+					
+					$(this).addClass("active");
+					$("#bar-" + $(this).attr("data-id")).fadeIn(250);
+				
+				});
+				
+				$(".belief").mouseleave(function() {
+					$(this).removeClass("active");
+					$("#bar-" + $(this).attr("data-id")).fadeOut(250);
+				
+				});
+			}
+			
+			function capitalize(string) {
+				if (string) return string.charAt(0).toUpperCase() + string.substring(1);
+				else return "";
+			}
+			
+		</script>
+		
+		<header>
+			<h1>A Majority of Americans <p>/ What we believe, statistically speaking (<a id="refresh" href="javascript:void(0)">refresh</a>)</p></h1>
+			
+		</header>
+		
+		<div id="main" class="main">		
+			<div class="sidebar">
+				&nbsp;
+				<div id="timeline-wrap" class="timeline-wrap">
+				
+					<div class="label" style="top: 0%">100%</div>
+					
+					<div class="label" style="bottom: 0%;">0%</div>
+					
+					<div class="spine"></div>
+					
+					<div class="highlight"></div>
+					
+				</div>
+			</div>
+			
+			<div class="content"></div>
+		
+		</div>
+
+		
+	</body>
+</html>
+
